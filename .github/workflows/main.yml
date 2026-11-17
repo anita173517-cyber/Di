@@ -21,39 +21,35 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Bulletproof Project Build
+      - name: Ultimate Project Path Finder & Build
         run: |
-          echo "Scanning workspace for Android project files..."
+          echo "Searching for actual Android project root..."
           
-          # Find directory containing build.gradle.kts or build.gradle
-          TARGET_DIR=""
-          for dir in . */; do
-            if [ -f "${dir}build.gradle.kts" ] || [ -f "${dir}build.gradle" ] || [ -f "build.gradle.kts" ] || [ -f "build.gradle" ]; then
-              if [ -f "build.gradle.kts" ] || [ -f "build.gradle" ]; then
-                TARGET_DIR="."
-              else
-                TARGET_DIR="${dir%/}"
-              fi
+          # Find the exact directory that contains settings.gradle or build.gradle (ignoring git folders)
+          PROJECT_PATH=""
+          for f in $(find . -name "settings.gradle*" -o -name "build.gradle*"); do
+            DIR=$(dirname "$f")
+            if [ "$DIR" != "." ]; then
+              PROJECT_PATH="$DIR"
               break
             fi
           done
           
-          # Fallback if target is still empty
-          if [ -z "$TARGET_DIR" ]; then
-            TARGET_DIR="."
+          if [ -n "$PROJECT_PATH" ]; then
+            echo "Entering project directory: $PROJECT_PATH"
+            cd "$PROJECT_PATH"
+          else
+            echo "Working in root directory"
           fi
           
-          echo "Moving to project directory: $TARGET_DIR"
-          cd "$TARGET_DIR"
-          
-          # Check for gradlew or generate wrapper
+          # Check and setup Gradle wrapper inside the project folder
           if [ ! -f "./gradlew" ]; then
             echo "Generating Gradle wrapper..."
             gradle wrapper --gradle-version 8.5
           fi
           
           chmod +x gradlew
-          echo "Executing APK build..."
+          echo "Starting APK build process..."
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload Built APK Artifact
@@ -61,3 +57,4 @@ jobs:
         with:
           name: release-apk
           path: '**/build/outputs/apk/release/*.apk'
+          
